@@ -1,21 +1,42 @@
-# albayda_court
-تقنية معلومات محكمة البيضاء الابتدائية
+# Albayda Court Telegram bot and private Android application API
 
-# Albayda Court Telegram Bot
+## Android app/backend
 
-Public deployment mirror for the Albayda Court Telegram bot.
+This repository now includes a FastAPI service (`api.py`) and Android client source (`android/`). The API serves the existing case register/search/PDF functionality. The Telegram bot can continue running separately; its `TELEGRAM_BOT_TOKEN` is not used by the Android API and must never be embedded in the APK.
 
-## Configure GitHub Actions
+### Server setup
 
-In the repository, open **Settings > Secrets and variables > Actions** and add:
+Use Python 3.11 or newer. Install dependencies with `python -m pip install -r requirements.txt`, then configure these **host environment variables** (never commit real values):
 
-- `TELEGRAM_BOT_TOKEN`: the Telegram bot token from BotFather.
-- `GOOGLE_DRIVE_FILE_ID`: the ID of the court records spreadsheet export. The file must be shared so the bot can download it.
+- `GOOGLE_DRIVE_FILE_ID`: publicly link-readable court CSV file ID, as required by the existing case-data loader.
+- `JWT_SECRET`: at least 32 random characters; keep stable between restarts so sessions remain valid.
+- `APP_DATABASE_PATH`: writable persistent disk path, e.g. `/var/lib/albayda/app.sqlite3`. The database contains password hashes, user accounts, and audit history. Back it up and restrict filesystem access.
+- `ADMIN_BOOTSTRAP_NAME`, `ADMIN_BOOTSTRAP_PHONE`, `ADMIN_BOOTSTRAP_PASSWORD`: used to create the first administrator only. Admin password must be at least 12 characters. After first startup, rotate/remove the bootstrap password variable; the existing admin password is not reset on restart.
 
-Never commit either value to the repository. The records file ID is deliberately read from the environment and is not included in this public source.
+The existing Telegram deployment additionally requires `TELEGRAM_BOT_TOKEN`. It is independent of this API.
 
-The workflow runs the test suite before starting the bot. Scheduled runs start every five hours and are limited to just under six hours by GitHub Actions; scheduled execution does not guarantee uninterrupted, always-on service. If GitHub blocks Actions at the account level because of a billing restriction, making this repository public will not remove that restriction.
+Start the API with `uvicorn api:app --host 0.0.0.0 --port ${PORT:-8000}`. Keep the service behind HTTPS. The host must support a continuously running ASGI/Python web service and persistent writable storage; a bot-only runner or short-lived GitHub Actions job is not a suitable API host. Configure a persistent disk before production use, otherwise SQLite data and audit history may be lost on redeploy.
 
-## Local development
+### Accounts, privacy, and audit
 
-Install the requirements with `python -m pip install -r requirements.txt`, copy `.env.example` to `.env`, set both environment values, then run `python bot.py`.
+Registration is self-service but every account starts `pending`; users cannot access case data until an administrator approves them. There is intentionally no SMS verification, per the requested policy. The first admin is seeded via environment variables. Admin endpoints list accounts, approve/reject registration, and inspect audit activity. Logs record registration, successful/failed login (failed attempts are not linked to submitted phone numbers), approvals/rejections, case-type views, searches (method and result count only—not the query), details views, PDF downloads, and sessions searches. Passwords are Argon2 hashes and are never logged. Only admin accounts can view audit history.
+
+Because this app handles court records, grant access only to authorized users, enforce HTTPS, configure backups and audit-log retention, and review applicable privacy/security requirements before public deployment. Add rate limiting at the reverse proxy/host for production.
+
+### API routes
+
+- `POST /api/auth/register`, `POST /api/auth/login`, `GET /api/me`
+- `GET /api/case-types`, `GET /api/cases/search?q=...`, `GET /api/cases/detail?case_number=...`
+- `GET /api/sessions?date=YYYY-MM-DD&judge=...`, `POST /api/cases/pdf`
+- Admin: `GET /api/admin/users?status=pending`, `POST /api/admin/users/{id}/decision`, `GET /api/admin/activity`
+- `GET /api/health`
+
+All endpoints except health, register, and login require a bearer access token. API docs are off by default; set `API_DOCS_ENABLED=true` only when needed.
+
+### Android client
+
+Open `android/` with Android Studio. Set the Gradle project property `API_BASE_URL` to the HTTPS base URL ending in `/`, e.g. `API_BASE_URL=https://your-api.example/`; the app has no production endpoint built in until this is configured. Build/install the debug APK from Android Studio. The starter client includes Arabic login/registration, pending approval messaging, case search, and an admin approval/activity view. Tokens are held in memory (not persisted), so users sign in again after closing the process. Do not distribute a build that points to HTTP or a test server.
+
+## Telegram bot
+
+The existing bot remains runnable with `python bot.py` after configuring `TELEGRAM_BOT_TOKEN` and `GOOGLE_DRIVE_FILE_ID`.

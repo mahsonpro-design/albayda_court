@@ -1,0 +1,3 @@
+# Example for Android Studio local.properties or ~/.gradle/gradle.properties.
+# Set this to the deployed HTTPS API origin, with a trailing slash.
+API_BASE_URL=https://your-api.example/
