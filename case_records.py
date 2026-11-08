@@ -21,6 +21,9 @@ from reportlab.pdfbase.ttfonts import TTFont, shapeStr
 from reportlab.pdfgen import canvas
 
 GOOGLE_DRIVE_DOWNLOAD_URL = 'https://drive.google.com/uc?'
+# Public case-records export used when the deployment does not provide an
+# override through GOOGLE_DRIVE_FILE_ID.
+DEFAULT_GOOGLE_DRIVE_FILE_ID = '1wxYp5pvVh-8fWkW8OV1zMqWz90q59j8H'
 MAX_CSV_BYTES = 20 * 1024 * 1024
 MAX_CSV_ROWS = 100_000
 RECORD_CACHE_SECONDS = 300
@@ -297,7 +300,10 @@ def _parse_case_records(content):
 
 
 def _download_case_csv():
-    file_id = os.getenv('GOOGLE_DRIVE_FILE_ID', '').strip()
+    file_id = os.getenv(
+        'GOOGLE_DRIVE_FILE_ID',
+        DEFAULT_GOOGLE_DRIVE_FILE_ID,
+    ).strip()
     if not file_id:
         raise CaseRecordsError('لم يتم إعداد معرّف ملف سجل القضايا في Google Drive.')
 
