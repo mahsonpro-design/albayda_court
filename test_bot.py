@@ -38,7 +38,7 @@ class ParseCaseQueryTests(unittest.TestCase):
                 self.assertIsNone(court_bot.parse_case_query(value))
 
 
-class LocalCsvFlowTests(unittest.TestCase):
+class LocalXLSXFlowTests(unittest.TestCase):
     def setUp(self):
         court_bot.records_search_states.clear()
         court_bot.sessions_search_states.clear()
@@ -57,7 +57,7 @@ class LocalCsvFlowTests(unittest.TestCase):
         self.assertIsNone(court_bot.parse_sitting_date('2026-13-40'))
 
     @patch.object(court_bot.bot, 'reply_to')
-    def test_case_search_loads_local_csv(self, reply_to):
+    def test_case_search_loads_local_XLSX(self, reply_to):
         message = SimpleNamespace(
             chat=SimpleNamespace(id=123),
             from_user=SimpleNamespace(id=42),
@@ -74,7 +74,7 @@ class LocalCsvFlowTests(unittest.TestCase):
         self.assertEqual(state['step'], 'direct_query')
         self.assertIs(state['records'], records)
         self.assertIn('رقم القضية', reply_to.call_args.args[1])
-        self.assertNotIn('CSV', reply_to.call_args.args[1])
+        self.assertNotIn('XLSX', reply_to.call_args.args[1])
         self.assertIsInstance(
             reply_to.call_args.kwargs['reply_markup'],
             court_bot.types.InlineKeyboardMarkup,
