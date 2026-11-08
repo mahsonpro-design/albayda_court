@@ -1,4 +1,4 @@
-import csv
+import xlsx
 import logging
 import os
 import re
@@ -21,8 +21,8 @@ from reportlab.pdfbase.ttfonts import TTFont, shapeStr
 from reportlab.pdfgen import canvas
 
 GOOGLE_DRIVE_DOWNLOAD_URL = 'https://drive.google.com/uc?'
-MAX_CSV_BYTES = 20 * 1024 * 1024
-MAX_CSV_ROWS = 100_000
+MAX_XLSX_BYTES = 20 * 1024 * 1024
+MAX_XLSX_ROWS = 100_000
 RECORD_CACHE_SECONDS = 300
 DOWNLOAD_TIMEOUT_SECONDS = 30
 SUPREME_COURT_RESULTS_URL = 'https://ysc.org.ye/Search_Result.aspx?'
