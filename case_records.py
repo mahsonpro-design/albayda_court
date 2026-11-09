@@ -299,8 +299,8 @@ def _parse_case_records(content):
 def _download_case_csv():
     file_id = os.getenv('GOOGLE_DRIVE_FILE_ID', '').strip()
     if not file_id:
-        raise CaseRecordsError('لم يتم إعداد معرّف ملف سجل القضايا في Google Drive.')
-
+        file_id = DEFAULT_GOOGLE_DRIVE_FILE_ID
+        
     url = GOOGLE_DRIVE_DOWNLOAD_URL + urlencode({
         'export': 'download',
         'id': file_id,
