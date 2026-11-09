@@ -298,45 +298,27 @@ def _parse_case_records(content):
 
 def _download_case_csv():
     file_id = os.getenv('GOOGLE_DRIVE_FILE_ID', '').strip()
-
     if not file_id:
-        file_id = DEFAULT_GOOGLE_DRIVE_FILE_ID
-
-    if not file_id:
-        raise CaseRecordsError(
-            'لم يتم إعداد معرّف ملف سجل القضايا في Google Drive.'
-        )
+        raise CaseRecordsError('لم يتم إعداد معرّف ملف سجل القضايا في Google Drive.')
 
     url = GOOGLE_DRIVE_DOWNLOAD_URL + urlencode({
         'export': 'download',
         'id': file_id,
     })
-
-    request = Request(
-        url,
-        headers={'User-Agent': 'AlbaydaCourtBot/1.0'},
-    )
-
+    request = Request(url, headers={'User-Agent': 'AlbaydaCourtBot/1.0'})
     try:
         with urlopen(request, timeout=DOWNLOAD_TIMEOUT_SECONDS) as response:
             content = response.read(MAX_CSV_BYTES + 1)
-
     except (URLError, TimeoutError, OSError) as exc:
-        logging.warning(
-            'Google Drive case CSV is unavailable (%s)',
-            type(exc).__name__,
-        )
+        logging.warning('Google Drive case CSV is unavailable (%s)', type(exc).__name__)
         raise CaseRecordsError(
             'تعذر تنزيل سجل القضايا من Google Drive. '
             'تحقق من إتاحة الملف عبر الرابط واتصال الإنترنت.'
         ) from exc
 
     if len(content) > MAX_CSV_BYTES:
-        raise CaseRecordsError(
-            'ملف سجل القضايا يتجاوز الحد المسموح للحجم.'
-        )
-
-    return content return content
+        raise CaseRecordsError('ملف سجل القضايا يتجاوز الحد المسموح للحجم.')
+    return content
 
 
 def load_case_records():
