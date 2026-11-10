@@ -45,6 +45,40 @@ if not API_TOKEN:
 
 bot = telebot.TeleBot(API_TOKEN)
 
+ALERT_CHAT_FILE = os.path.join(BASE_DIR, '.alert_chat_id')
+
+
+def _read_alert_chat_id():
+    try:
+        with open(ALERT_CHAT_FILE, 'r', encoding='utf-8') as handle:
+            value = handle.read().strip()
+    except OSError:
+        return None
+    return value or None
+
+
+def _save_alert_chat_id(chat_id):
+    if not chat_id:
+        return
+    if _read_alert_chat_id() == str(chat_id):
+        return
+    try:
+        with open(ALERT_CHAT_FILE, 'w', encoding='utf-8') as handle:
+            handle.write(str(chat_id))
+    except OSError as exc:
+        logging.warning('Could not store alert chat id (%s)', str(exc))
+
+
+def _notify_owner(text):
+    chat_id = _read_alert_chat_id()
+    if not chat_id:
+        logging.info('No alert chat id stored yet, startup notice skipped.')
+        return
+    try:
+        bot.send_message(chat_id, text)
+    except Exception as exc:
+        logging.warning('Could not send startup notice (%s)', str(exc))
+
 LOGO_STICKER_PATH = os.path.join(BASE_DIR, 'albayda-it-logo.webp')
 INFO_STICKER_PATH = os.path.join(BASE_DIR, 'ME.webp')
 CASE_NUMBER_MAX_LENGTH = 10
@@ -330,6 +364,17 @@ def _cancel_keyboard():
         '❌ إلغاء والعودة للقائمة الرئيسية',
         callback_data='flow:cancel',
     ))
+    return markup
+
+
+def _back_to_main_menu_keyboard():
+    markup = types.InlineKeyboardMarkup()
+    markup.add(
+        types.InlineKeyboardButton(
+            '🔙 العودة للقائمة الرئيسية',
+            callback_data='flow:cancel',
+        )
+    )
     return markup
 
 
@@ -716,7 +761,11 @@ def process_supreme_court_search(message, state, decision_number=''):
             caption='⚖️ نتائج البحث في المحكمة العليا',
         )
         _clear_records_state(message.chat.id, user_id)
-        send_welcome(message, user_id=user_id, show_branding=False)
+        bot.send_message(
+            message.chat.id,
+            '✅ انتهى البحث.',
+            reply_markup=_back_to_main_menu_keyboard(),
+        )
     except CaseRecordsError as exc:
         logging.warning('Could not search Supreme Court cases (%s)', str(exc))
         bot.reply_to(message, str(exc))
@@ -819,7 +868,11 @@ def handle_records_query(message, state):
                 pdf,
                 caption=f"📢 إعلان حضور جلسة القضية رقم {state['case_number']}",
             )
-            send_welcome(message, show_branding=False)
+            bot.send_message(
+                message.chat.id,
+                '✅ تم إنشاء الإعلان بنجاح.',
+                reply_markup=_back_to_main_menu_keyboard(),
+            )
         except CaseRecordsError as exc:
             logging.warning('Could not create attendance notice (%s)', str(exc))
             bot.reply_to(message, str(exc))
@@ -863,7 +916,11 @@ def _send_case_records(message, matches):
             logging.warning('Could not create case record PDF (%s)', str(exc))
             bot.reply_to(message, str(exc))
             return
-    send_welcome(message, show_branding=False)
+    bot.send_message(
+        message.chat.id,
+        '✅ انتهى عرض نتائج البحث.',
+        reply_markup=_back_to_main_menu_keyboard(),
+    )
 
 
 def begin_attendance_ad(message, user_id=None):
@@ -1067,7 +1124,11 @@ def process_daily_sessions_search(message, records, sitting_date, judge=None):
             pdf,
             caption=caption,
         )
-        send_welcome(message, show_branding=False)
+        bot.send_message(
+            message.chat.id,
+            '✅ تم عرض قائمة الجلسات.',
+            reply_markup=_back_to_main_menu_keyboard(),
+        )
     except CaseRecordsError as exc:
         logging.warning('Could not create daily sessions PDF (%s)', str(exc))
         bot.reply_to(message, str(exc))
@@ -1142,6 +1203,7 @@ def main_callback_handler(call):
 
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message, user_id=None, show_branding=True):
+    _save_alert_chat_id(getattr(getattr(message, 'chat', None), 'id', None))
     if user_id is None:
         user_id = getattr(getattr(message, 'from_user', None), 'id', None)
     _clear_records_state(
@@ -1236,4 +1298,5 @@ def handle_menu(message):
 
 if __name__ == '__main__':
     logging.info('🚀 بوت محكمة البيضاء المرتبط بسجل القضايا CSV يعمل الآن...')
+    _notify_owner('✅ تم تشغيل بوت محكمة البيضاء وهو يعمل الآن.')
     bot.infinity_polling(timeout=60, long_polling_timeout=60)
